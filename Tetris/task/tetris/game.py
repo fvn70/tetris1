@@ -10,7 +10,7 @@ class Field:
         self.items.append(p)
 
     def down(self, p):
-        p.down(self.m)
+        p.down(self.m, self.n)
 
     def left(self, p):
         p.left(self.m)
@@ -39,22 +39,29 @@ class Figure:
     def __init__(self, name, shapes):
         self.name = name
         self.shapes = shapes
+        self.live = True
         self.idx = 0
         self.turn = 0
         self.turns = len(shapes)
 
-    def down(self, m):
-        self.shapes = [[p[j] + m for j in range(4)] for p in self.shapes]
+    def down(self, m, n):
+        v_max = max([v for v in self.shapes[self.idx]])
+        if self.live and v_max < m * (n - 1):
+            self.shapes = [[p[j] + m for j in range(4)] for p in self.shapes]
+        self.live = v_max < m * (n - 2)
 
     def left(self, m):
-        self.shapes = [[p[j] - 1 if p[j] % m > 0 else p[j] + m - 1 for j in range(4)] for p in self.shapes]
+        if self.live and min([v % m for v in self.shapes[self.idx]]) > 0:
+                self.shapes = [[p[j] - 1 for j in range(4)] for p in self.shapes]
 
     def right(self, m):
-        self.shapes = [[p[j] + 1 if p[j] % m < m - 1 else p[j] - m + 1 for j in range(4)] for p in self.shapes]
+        if self.live and max([v % m for v in self.shapes[self.idx]]) < m - 1:
+            self.shapes = [[p[j] + 1 for j in range(4)] for p in self.shapes]
 
     def rotate(self):
-        self.turn += 1
-        self.idx = self.turn % self.turns
+        if self.live:
+            self.turn += 1
+            self.idx = self.turn % self.turns
 
 
 O = [[4, 14, 15, 5]]
