@@ -1,5 +1,8 @@
+import numpy as np
+
 class Field:
     items = []
+    saved = []
 
     def __init__(self, cols, rows):
         self.n = rows
@@ -10,7 +13,7 @@ class Field:
         self.items.append(p)
 
     def down(self, p):
-        p.down(self.m, self.n)
+        return p.down(self, self.m, self.n)
 
     def left(self, p):
         p.left(self.m)
@@ -24,7 +27,9 @@ class Field:
     def draw(self):
         lst = []
         for p in self.items:
-            lst += p.shapes[p.idx]
+            if p.live:
+                lst += p.shapes[p.idx]
+        lst += self.saved
         k = 0
         print()
         for r in range(self.n):
@@ -33,6 +38,11 @@ class Field:
                 s += '0 ' if k in lst else '- '
                 k += 1
             print(s.strip())
+
+    def down_all(self):
+        v_max = self.m * (self.n - 1)
+        while np.intersect1d(self.saved, range(v_max, v_max + self.m)).size == self.m:
+            self.saved = [v + self.m for v in self.saved if v < v_max]
 
 class Figure:
 
@@ -44,15 +54,28 @@ class Figure:
         self.turn = 0
         self.turns = len(shapes)
 
-    def down(self, m, n):
-        v_max = max([v for v in self.shapes[self.idx]])
-        if self.live and v_max < m * (n - 1):
-            self.shapes = [[p[j] + m for j in range(4)] for p in self.shapes]
-        self.live = v_max < m * (n - 2)
+    def down(self, g, m, n):
+        row = n
+        if self.live:
+            p = self.shapes[self.idx]
+            p1 = [v + m for v in p]
+            v0 = max([v // m for v in p])
+            if np.intersect1d(g.saved, p1).size == 0:
+                if v0 < n - 1:
+                    self.shapes = [[p[j] + m for j in range(4)] for p in self.shapes]
+                if v0 == n - 2:
+                    self.live = False
+                    g.saved += p1
+            else:
+                self.live = False
+                g.saved += p
+            if len(g.saved) > 0:
+                row = min(g.saved) // m
+        return row
 
     def left(self, m):
         if self.live and min([v % m for v in self.shapes[self.idx]]) > 0:
-                self.shapes = [[p[j] - 1 for j in range(4)] for p in self.shapes]
+            self.shapes = [[p[j] - 1 for j in range(4)] for p in self.shapes]
 
     def right(self, m):
         if self.live and max([v % m for v in self.shapes[self.idx]]) < m - 1:
@@ -74,22 +97,25 @@ T = [[4, 14, 24, 15], [4, 13, 14, 15], [5, 15, 25, 14], [4, 5, 6, 15]]
 
 dic = {'O': O, 'I': I, 'S': S, 'Z': Z, 'L': L, 'J': J, 'T': T, }
 
-
-fig = input()
 m, n = input().split()
 # m, n = '10', '20'
 g = Field(int(m), int(n))
-g.draw()
-f = Figure(fig, dic[fig].copy())
-g.add_item(f)
 g.draw()
 
 while True:
     cmd = input()
     if cmd == 'exit':
         break
+    elif cmd == 'piece':
+        cmd = input()
+        f = Figure(cmd, dic[cmd].copy())
+        g.add_item(f)
+        g.draw()
+        continue
     elif cmd == 'down':
         pass
+    elif cmd == 'break':
+        g.down_all()
     elif cmd == 'left':
         g.left(f)
     elif cmd == 'right':
@@ -97,5 +123,8 @@ while True:
     elif cmd == 'rotate':
         g.rotate(f)
 
-    g.down(f)
+    row = g.down(f)
     g.draw()
+    if row < 1:
+        print('\nGame Over!')
+        break
